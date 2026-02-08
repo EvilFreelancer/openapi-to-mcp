@@ -51,19 +51,15 @@ Ensure the backend API is reachable at `MCP_API_BASE_URL` and that the OpenAPI s
 
 ## Run with Docker
 
-1. Build the image:
+Image on Docker Hub: [evilfreelancer/openapi-to-mcp](https://hub.docker.com/r/evilfreelancer/openapi-to-mcp). Use tag `latest` or a version tag (e.g. `v1.0.0`).
 
-   ```bash
-   docker build -t openapi-to-mcp .
-   ```
-
-2. Run with env vars (example: spec from URL, API at host):
+1. Pull and run with env vars (example: spec from URL, API at host):
 
    ```bash
    docker run --rm -p 3100:3100 \
      -e MCP_OPENAPI_SPEC_URL=http://host.docker.internal:3000/openapi.json \
      -e MCP_API_BASE_URL=http://host.docker.internal:3000 \
-     openapi-to-mcp
+     evilfreelancer/openapi-to-mcp:latest
    ```
 
    On Linux you may need `--add-host=host.docker.internal:host-gateway` or use the host network. Alternatively pass a file path and mount the spec:
@@ -73,12 +69,14 @@ Ensure the backend API is reachable at `MCP_API_BASE_URL` and that the OpenAPI s
      -v $(pwd)/openapi.json:/app/openapi.json:ro \
      -e MCP_OPENAPI_SPEC_FILE=/app/openapi.json \
      -e MCP_API_BASE_URL=http://host.docker.internal:3000 \
-     openapi-to-mcp
+     evilfreelancer/openapi-to-mcp:latest
    ```
+
+   To build the image locally instead: `docker build -t openapi-to-mcp .` and use `openapi-to-mcp` as the image name in the commands above.
 
 ## Run with Docker Compose
 
-A minimal `docker-compose.yaml` is included so you can run the MCP server and optionally point it at an existing API.
+A minimal `docker-compose.yaml` is included so you can run the MCP server and optionally point it at an existing API. It uses the image from Docker Hub ([evilfreelancer/openapi-to-mcp](https://hub.docker.com/r/evilfreelancer/openapi-to-mcp)).
 
 1. Copy `.env.example` to `.env` and set:
 
@@ -105,7 +103,7 @@ Tests cover: config (env vars, include/exclude, defaults), OpenAPI loader (URL a
 
 ## Dockerfile
 
-The project includes a **Dockerfile** (Node 20 Alpine): install deps, build TypeScript, production prune, run `node dist/index.js`. No dev dependencies or tests in the image. Build:
+The project includes a **Dockerfile** (Node 20 Alpine): install deps, build TypeScript, production prune, run `node dist/index.js`. No dev dependencies or tests in the image. Pre-built images are published to [Docker Hub](https://hub.docker.com/r/evilfreelancer/openapi-to-mcp). To build locally:
 
 ```bash
 docker build -t openapi-to-mcp .
