@@ -111,6 +111,21 @@ The project includes a **Dockerfile** (Node 20 Alpine): install deps, build Type
 docker build -t openapi-to-mcp .
 ```
 
+## CI - Docker image on Docker Hub
+
+A GitHub Actions workflow (`.github/workflows/docker-publish.yml`) runs tests, then builds the image and pushes it to Docker Hub.
+
+- **Triggers**: manually (Actions → "Docker build and push" → Run workflow) or on push of any git tag.
+- **Version**: on tag push the image tag equals the git tag (e.g. `v1.0.0`); on manual run you can set a version (default `latest`).
+- **Main only**: when triggered by a tag, the workflow checks that the tag points to a commit on `main`; otherwise the run fails.
+
+**Required repository secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Description |
+|--------|-------------|
+| `DOCKERHUB_USERNAME` | Docker Hub username (image will be `DOCKERHUB_USERNAME/openapi-to-mcp`) |
+| `DOCKERHUB_TOKEN` | Docker Hub access token (recommended) or password |
+
 ## Similar projects
 
 - **[mcp-openapi-proxy](https://github.com/matthewhand/mcp-openapi-proxy)** (Python) – MCP server that exposes REST APIs from OpenAPI specs as MCP tools. Low-level mode (one tool per endpoint) or FastMCP mode. Auth and endpoint filtering. Install: `uvx mcp-openapi-proxy`.

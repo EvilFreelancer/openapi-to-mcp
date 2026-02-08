@@ -1,0 +1,88 @@
+# Build Docker image and push to Docker Hub.
+# Triggers: manual (workflow_dispatch) or push of a tag. Uses tag as image version.
+# Runs only when tag points to a commit on main (for tag push); manual runs unconditionally.
+
+name: Docker build and push
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image tag (e.g. v1.0.0 or latest). Used when not triggered by a git tag."
+        required: false
+        default: "latest"
+  push:
+    tags:
+      - "*"
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install and test
+        run: |
+          npm ci
+          npm test
+
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tag is on main
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        run: |
+          git fetch origin main
+          if ! git branch -r --contains "${{ github.sha }}" | grep -q 'origin/main'; then
+            echo "Tag ${{ github.ref_name }} does not point to a commit on main. Aborting."
+            exit 1
+          fi
+
+      - name: Set image version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata and build
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/openapi-to-mcp
+          tags: |
+            type=raw,value=${{ steps.version.outputs.tag }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
