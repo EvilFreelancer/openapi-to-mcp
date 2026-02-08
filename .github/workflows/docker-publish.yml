@@ -91,6 +91,7 @@ jobs:
           images: ${{ env.DOCKER_IMAGE }}
           tags: |
             type=raw,value=${{ steps.version.outputs.tag }}
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6
