@@ -1,0 +1,35 @@
+# Dependencies - installed in container via npm ci
+node_modules/
+
+# Build output - built in container
+dist/
+
+# Tests and dev - not needed in production image
+tests/
+coverage/
+jest.config.js
+tsconfig.min.json
+
+# Git and repo metadata
+.git/
+.gitignore
+
+# Local env and secrets - never in image
+.env
+.env.*
+!.env.example
+
+# Docs and tooling - not needed at runtime
+README.md
+.cursor/
+*.md
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Docker - avoid recursive copy
+Dockerfile
+.dockerignore
+docker-compose.yaml

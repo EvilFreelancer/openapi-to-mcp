@@ -1,0 +1,24 @@
+# Standalone run of openapi-to-mcp. Set MCP_OPENAPI_SPEC_URL and MCP_API_BASE_URL
+# in .env to point at your API (e.g. another compose stack or a remote host).
+# Example for API on host: MCP_API_BASE_URL=http://host.docker.internal:3000
+# and MCP_OPENAPI_SPEC_URL=http://host.docker.internal:3000/openapi.json
+
+services:
+  openapi-to-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      MCP_API_BASE_URL: ${MCP_API_BASE_URL:-http://127.0.0.1:3000}
+      MCP_OPENAPI_SPEC_URL: ${MCP_OPENAPI_SPEC_URL:-}
+      MCP_OPENAPI_SPEC_FILE: ${MCP_OPENAPI_SPEC_FILE:-}
+      MCP_INCLUDE_ENDPOINTS: ${MCP_INCLUDE_ENDPOINTS:-}
+      MCP_EXCLUDE_ENDPOINTS: ${MCP_EXCLUDE_ENDPOINTS:-}
+      MCP_TOOL_PREFIX: ${MCP_TOOL_PREFIX:-}
+      MCP_SERVER_NAME: ${MCP_SERVER_NAME:-openapi-to-mcp}
+      MCP_PORT: ${MCP_PORT:-3100}
+      MCP_HOST: ${MCP_HOST:-0.0.0.0}
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
