@@ -128,9 +128,14 @@ export function openApiToTools(
     config.excludeEndpoints,
     config.toolPrefix,
   );
+  const nameCount = new Map<string, number>();
+  for (const { name } of ops) {
+    nameCount.set(name, (nameCount.get(name) ?? 0) + 1);
+  }
   const tools: ToolFromOpenApi[] = [];
 
   for (const { method, path, op, name } of ops) {
+    const uniqueName = (nameCount.get(name) ?? 0) > 1 ? `${name}_${method}` : name;
     const queryParamNames = (op.parameters ?? []).filter((p) => p.in === 'query').map((p) => p.name);
     const pathParamNames = (op.parameters ?? []).filter((p) => p.in === 'path').map((p) => p.name);
     const bodySchema = op.requestBody?.content?.['application/json']?.schema;
@@ -170,7 +175,7 @@ export function openApiToTools(
     };
 
     tools.push({
-      name,
+      name: uniqueName,
       description,
       inputSchema,
       handler,

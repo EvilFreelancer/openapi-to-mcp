@@ -23,7 +23,7 @@ flowchart LR
 
 1. **Load OpenAPI spec** from `MCP_OPENAPI_SPEC_URL` (preferred) or `MCP_OPENAPI_SPEC_FILE`.
 2. **Collect operations** (method + path). Filter: if `MCP_INCLUDE_ENDPOINTS` is set, keep only those; otherwise drop any in `MCP_EXCLUDE_ENDPOINTS`. Include has priority over exclude.
-3. **For each operation** create an MCP tool: name = `MCP_TOOL_PREFIX` + path segment (e.g. `api_` + `messages` = `api_messages`), input schema from parameters and requestBody (Zod), handler = HTTP call to `MCP_API_BASE_URL`.
+3. **For each operation** create an MCP tool: name = `MCP_TOOL_PREFIX` + path segment (e.g. `api_` + `messages` = `api_messages`). If the same path segment is used by more than one method (e.g. GET and PUT on `/pet/{id}`), the tool name is made unique by appending the method (e.g. `pet_get`, `pet_put`). Input schema from parameters and requestBody (Zod), handler = HTTP call to `MCP_API_BASE_URL`.
 
 Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 

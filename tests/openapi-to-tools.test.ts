@@ -63,8 +63,9 @@ describe('openapi-to-tools', () => {
     const names = tools.map((t) => t.name).sort();
     expect(names).toContain('health');
     expect(names).toContain('messages');
-    expect(names).toContain('channels');
-    expect(tools.some((t) => t.name === 'channels' && t.description)).toBe(true);
+    expect(names).toContain('channels_get');
+    expect(names).toContain('channels_post');
+    expect(tools.some((t) => (t.name === 'channels_get' || t.name === 'channels_post') && t.description)).toBe(true);
   });
 
   it('applies tool prefix', () => {
@@ -76,7 +77,8 @@ describe('openapi-to-tools', () => {
       axiosInstance,
     });
     expect(tools.map((t) => t.name)).toContain('telegram_messages');
-    expect(tools.map((t) => t.name)).toContain('telegram_channels');
+    expect(tools.map((t) => t.name)).toContain('telegram_channels_get');
+    expect(tools.map((t) => t.name)).toContain('telegram_channels_post');
     expect(tools.map((t) => t.name)).toContain('telegram_health');
   });
 
@@ -150,5 +152,28 @@ describe('openapi-to-tools', () => {
     const result = await tools[0].handler({});
     expect(result.isError).toBe(true);
     expect((result.content[0] as { text: string }).text).toMatch(/error|parameter/i);
+  });
+
+  it('suffixes tool name with method when same path segment has multiple methods (duplicate names)', () => {
+    const specWithSamePath = {
+      openapi: '3.0.0',
+      info: { title: 'Pet API', version: '1.0.0' },
+      paths: {
+        '/pet/{id}': {
+          get: { operationId: 'getPet', summary: 'Find a pet' },
+          put: { operationId: 'updatePet', summary: 'Update a pet' },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithSamePath as never, {
+      includeEndpoints: [],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(2);
+    const names = tools.map((t) => t.name).sort();
+    expect(names).toEqual(['pet_get', 'pet_put']);
   });
 });
