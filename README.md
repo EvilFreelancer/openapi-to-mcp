@@ -9,12 +9,12 @@ Useful when you already have (or want) a REST API with an OpenAPI/Swagger spec: 
 ```mermaid
 flowchart LR
   subgraph startup["Startup"]
-    A[OpenAPI spec\nURL or file] --> B[Load & filter\ninclude/exclude]
-    B --> C[N MCP tools\none per operation]
+    A[OpenAPI spec<br/>URL or file] --> B[Load and filter<br/>include or exclude]
+    B --> C[N MCP tools<br/>one per operation]
   end
 
   subgraph runtime["Runtime"]
-    D[MCP client] <-->|Streamable HTTP\nPOST/GET /mcp| E[openapi-to-mcp]
+    D[MCP client] <-->|Streamable HTTP<br/>POST/GET /mcp| E[openapi-to-mcp]
     E <-->|HTTP| F[Backend API]
   end
 
