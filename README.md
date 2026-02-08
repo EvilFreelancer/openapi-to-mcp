@@ -6,6 +6,21 @@ Useful when you already have (or want) a REST API with an OpenAPI/Swagger spec: 
 
 ## How it works
 
+```mermaid
+flowchart LR
+  subgraph startup["Startup"]
+    A[OpenAPI spec\nURL or file] --> B[Load & filter\ninclude/exclude]
+    B --> C[N MCP tools\none per operation]
+  end
+
+  subgraph runtime["Runtime"]
+    D[MCP client] <-->|Streamable HTTP\nPOST/GET /mcp| E[openapi-to-mcp]
+    E <-->|HTTP| F[Backend API]
+  end
+
+  C -.->|registered in| E
+```
+
 1. **Load OpenAPI spec** from `MCP_OPENAPI_SPEC_URL` (preferred) or `MCP_OPENAPI_SPEC_FILE`.
 2. **Collect operations** (method + path). Filter: if `MCP_INCLUDE_ENDPOINTS` is set, keep only those; otherwise drop any in `MCP_EXCLUDE_ENDPOINTS`. Include has priority over exclude.
 3. **For each operation** create an MCP tool: name = `MCP_TOOL_PREFIX` + path segment (e.g. `api_` + `messages` = `api_messages`), input schema from parameters and requestBody (Zod), handler = HTTP call to `MCP_API_BASE_URL`.
