@@ -1,4 +1,4 @@
-# Openapi/Swagger to MCP
+# OpenAPI to MCP
 
 Standalone proxy that turns any **OpenAPI/Swagger**-described HTTP API into an **MCP (Model Context Protocol)** server. It loads the spec at startup, filters operations by include/exclude, and registers one MCP tool per API operation. Tool calls are executed as HTTP requests to the backend API.
 
