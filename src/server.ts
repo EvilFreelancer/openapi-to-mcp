@@ -12,21 +12,23 @@ const { StreamableHTTPServerTransport } = require(path.join(sdkRoot, 'dist/cjs/s
 /**
  * Creates an Express app that serves MCP over Streamable HTTP at POST /mcp and GET /mcp.
  * Tools are built from OpenAPI spec (loaded at startup). Stateless: each request gets a new McpServer and transport.
+ * @param instructions Optional instructions for MCP clients (typically from OpenAPI info.description).
  */
-export function createMcpApp(config: McpConfig, tools: ToolFromOpenApi[]): Express {
+export function createMcpApp(config: McpConfig, tools: ToolFromOpenApi[], instructions?: string): Express {
   const app = express();
   app.use(express.json());
 
   type ToolCb = (args: unknown, extra: unknown) => Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }>;
 
   async function handleMcpRequest(req: Request, res: Response): Promise<void> {
-    const server = new McpServer(
-      {
-        name: config.serverName,
-        version: '1.0.0',
-      },
-      { capabilities: { tools: {} } },
-    );
+    const serverInfo: { name: string; version: string; instructions?: string } = {
+      name: config.serverName,
+      version: '1.0.0',
+    };
+    if (instructions) {
+      serverInfo.instructions = instructions;
+    }
+    const server = new McpServer(serverInfo, { capabilities: { tools: {} } });
 
     for (const tool of tools) {
       (server as { registerTool(name: string, config: { description: string; inputSchema: unknown }, cb: ToolCb): void }).registerTool(

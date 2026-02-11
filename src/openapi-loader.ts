@@ -8,7 +8,7 @@ import axios from 'axios';
 
 export interface OpenApiSpec {
   openapi?: string;
-  info?: { title?: string; version?: string };
+  info?: { title?: string; version?: string; description?: string };
   paths?: Record<string, Record<string, OpenApiOperation>>;
 }
 

@@ -176,4 +176,119 @@ describe('openapi-to-tools', () => {
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual(['pet_get', 'pet_put']);
   });
+
+  it('handles response with circular references without crashing', async () => {
+    const circularData: { self?: unknown } = { self: null };
+    circularData.self = circularData;
+    // Mock axios to return circular data directly (simulating a real scenario where
+    // data might have circular references after processing)
+    const originalRequest = axiosInstance.request.bind(axiosInstance);
+    jest.spyOn(axiosInstance, 'request').mockImplementation(async (config) => {
+      return {
+        data: circularData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: config as never,
+      };
+    });
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    const result = await tools[0].handler({ query: 'test' });
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe('text');
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toBeTruthy();
+    expect(text).toContain('[Circular]');
+    expect(result.isError).toBeUndefined();
+    jest.restoreAllMocks();
+  });
+
+  it('handles response with BigInt values without crashing', async () => {
+    const bigIntData = { id: BigInt(9007199254740991), value: 123 };
+    const originalRequest = axiosInstance.request.bind(axiosInstance);
+    jest.spyOn(axiosInstance, 'request').mockImplementation(async (config) => {
+      return {
+        data: bigIntData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: config as never,
+      };
+    });
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    const result = await tools[0].handler({ query: 'test' });
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe('text');
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toBeTruthy();
+    const parsed = JSON.parse(text);
+    expect(parsed.id).toBe('9007199254740991');
+    expect(parsed.value).toBe(123);
+    expect(result.isError).toBeUndefined();
+    jest.restoreAllMocks();
+  });
+
+  it('handles response with undefined values without crashing', async () => {
+    const dataWithUndefined = { field1: 'value', field2: undefined, field3: null };
+    mock.onGet('/messages').reply(200, dataWithUndefined);
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    const result = await tools[0].handler({ query: 'test' });
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe('text');
+    const parsed = JSON.parse((result.content[0] as { text: string }).text);
+    expect(parsed.field1).toBe('value');
+    expect(parsed.field3).toBeNull();
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('handles string response without double-stringifying', async () => {
+    mock.onGet('/messages').reply(200, 'simple string response');
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    const result = await tools[0].handler({ query: 'test' });
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe('text');
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toBe('"simple string response"');
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('handles null response without crashing', async () => {
+    mock.onGet('/messages').reply(200, null);
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    const result = await tools[0].handler({ query: 'test' });
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe('text');
+    expect((result.content[0] as { text: string }).text).toBe('null');
+    expect(result.isError).toBeUndefined();
+  });
 });

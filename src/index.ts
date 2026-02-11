@@ -19,7 +19,8 @@ async function main(): Promise<void> {
     console.log(`[mcp] Registered ${tools.length} tool(s): ${tools.map((t) => t.name).join(', ')}`);
   }
 
-  const app = createMcpApp(config, tools);
+  const instructions = spec.info?.description;
+  const app = createMcpApp(config, tools, instructions);
   app.listen(config.port, config.host, () => {
     console.log(`[mcp] MCP server listening on http://${config.host}:${config.port} (POST/GET /mcp)`);
   });

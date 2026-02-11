@@ -62,4 +62,14 @@ describe('openapi-loader', () => {
   it('throws when both URL and file are null', async () => {
     await expect(loadOpenApiSpec(null, null)).rejects.toThrow(/MCP_OPENAPI_SPEC_URL|MCP_OPENAPI_SPEC_FILE/);
   });
+
+  it('loads description from OpenAPI info', async () => {
+    const specWithDescription = {
+      ...minimalSpec,
+      info: { ...minimalSpec.info, description: 'Test API description for MCP instructions' },
+    };
+    mock.onGet('http://api.test/openapi.json').reply(200, specWithDescription);
+    const spec = await loadOpenApiSpec('http://api.test/openapi.json', null);
+    expect(spec.info?.description).toBe('Test API description for MCP instructions');
+  });
 });

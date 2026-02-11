@@ -83,6 +83,39 @@ function buildZodShapeFromOperation(op: OpenApiOperation): z.ZodRawShape {
   return shape;
 }
 
+/**
+ * Safely stringify data to JSON, handling circular references, BigInt, and other non-serializable values.
+ */
+function safeStringify(data: unknown): string {
+  const seen = new WeakSet();
+  const replacer = (_key: string, value: unknown): unknown => {
+    if (typeof value === 'bigint') {
+      return value.toString();
+    }
+    if (typeof value === 'function') {
+      return '[Function]';
+    }
+    if (typeof value === 'symbol') {
+      return value.toString();
+    }
+    if (value === undefined) {
+      return null;
+    }
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular]';
+      }
+      seen.add(value);
+    }
+    return value;
+  };
+  try {
+    return JSON.stringify(data, replacer);
+  } catch (e) {
+    return JSON.stringify({ error: 'Failed to serialize response', message: e instanceof Error ? e.message : String(e) });
+  }
+}
+
 function resolveOperations(
   spec: OpenApiSpec,
   includeEndpoints: string[],
@@ -165,7 +198,7 @@ export function openApiToTools(
             ? Object.fromEntries(bodyParamNames.filter((p) => args[p] !== undefined).map((p) => [p, args[p]]))
             : undefined;
         const res = await client.request({ method, url, params, data });
-        return { content: [textContent(JSON.stringify(res.data))] };
+        return { content: [textContent(safeStringify(res.data))] };
       } catch (e) {
         const message = axios.isAxiosError(e) && e.response?.data && typeof e.response.data === 'object' && 'error' in e.response.data
           ? String((e.response.data as { error?: unknown }).error)
