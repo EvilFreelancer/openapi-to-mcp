@@ -4,7 +4,11 @@
 
 import { z } from 'zod';
 import axios, { AxiosInstance } from 'axios';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { OpenApiSpec, OpenApiOperation, OpenApiParameter } from './openapi-loader';
+import { logger } from './logger';
+
+export const correlationIdStorage = new AsyncLocalStorage<string>();
 
 export interface ToolFromOpenApi {
   name: string;
@@ -180,6 +184,7 @@ export function openApiToTools(
     const description = [op.summary, op.description].filter(Boolean).join('. ') || `API ${method.toUpperCase()} ${path}`;
 
     const handler = async (args: Record<string, unknown>) => {
+      const correlationId = correlationIdStorage.getStore() || 'unknown';
       const textContent = (text: string): { type: 'text'; text: string } => ({ type: 'text', text });
       try {
         let url = path;
@@ -197,12 +202,37 @@ export function openApiToTools(
           bodyParamNames.length > 0
             ? Object.fromEntries(bodyParamNames.filter((p) => args[p] !== undefined).map((p) => [p, args[p]]))
             : undefined;
+
+        logger.debug(correlationId, `Calling API: ${method.toUpperCase()} ${url}`, {
+          toolName: uniqueName,
+          params,
+          data,
+        });
+
         const res = await client.request({ method, url, params, data });
+
+        logger.debug(correlationId, `API call successful: ${method.toUpperCase()} ${url}`, {
+          toolName: uniqueName,
+          status: res.status,
+          responseSize: safeStringify(res.data).length,
+        });
+
         return { content: [textContent(safeStringify(res.data))] };
       } catch (e) {
         const message = axios.isAxiosError(e) && e.response?.data && typeof e.response.data === 'object' && 'error' in e.response.data
           ? String((e.response.data as { error?: unknown }).error)
           : (e instanceof Error ? e.message : String(e));
+
+        const statusCode = axios.isAxiosError(e) && e.response ? e.response.status : undefined;
+        const errorMessage = axios.isAxiosError(e) ? e.message : String(e);
+
+        logger.warn(correlationId, `API call failed: ${method.toUpperCase()} ${path}`, {
+          toolName: uniqueName,
+          statusCode,
+          errorMessage,
+          message,
+        });
+
         return { content: [textContent(`Error: ${message}`)], isError: true };
       }
     };

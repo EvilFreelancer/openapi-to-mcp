@@ -21,6 +21,17 @@ flowchart LR
   C -.->|registered in| E
 ```
 
+### Logging and Correlation IDs
+
+The server includes comprehensive logging with correlation ID support for request tracking:
+
+- **Correlation ID**: Extracted from `X-Correlation-ID` header (case-insensitive) or auto-generated for each request
+- **Log levels**: `DEBUG`, `INFO`, `WARN`, `ERROR` (configurable via `MCP_LOG_LEVEL` env var, default: `INFO`)
+- **Log format**: `[correlation_id] LEVEL message` with optional context data
+- **Request tracking**: All logs include correlation ID for tracing requests through the system
+
+For E2E testing, pass `X-Correlation-ID` header with your request to track it across all logs.
+
 1. **Load OpenAPI spec** from `MCP_OPENAPI_SPEC_URL` (preferred) or `MCP_OPENAPI_SPEC_FILE`.
 2. **Collect operations** (method + path). Filter: if `MCP_INCLUDE_ENDPOINTS` is set, keep only those; otherwise drop any in `MCP_EXCLUDE_ENDPOINTS`. Include has priority over exclude.
 3. **For each operation** create an MCP tool: name = `MCP_TOOL_PREFIX` + path segment (e.g. `api_` + `messages` = `api_messages`). If the same path segment is used by more than one method (e.g. GET and PUT on `/pet/{id}`), the tool name is made unique by appending the method (e.g. `pet_get`, `pet_put`). Input schema from parameters and requestBody (Zod), handler = HTTP call to `MCP_API_BASE_URL`.
@@ -40,6 +51,7 @@ Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 | `MCP_SERVER_NAME` | Server name reported to MCP clients | `openapi-to-mcp` |
 | `MCP_PORT` | Port for Streamable HTTP server | `3100` |
 | `MCP_HOST` | Bind host | `0.0.0.0` |
+| `MCP_LOG_LEVEL` | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` (case-insensitive) | `INFO` |
 
 At least one of `MCP_OPENAPI_SPEC_URL` or `MCP_OPENAPI_SPEC_FILE` must be set.
 
