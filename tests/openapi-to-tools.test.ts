@@ -291,4 +291,46 @@ describe('openapi-to-tools', () => {
     expect((result.content[0] as { text: string }).text).toBe('null');
     expect(result.isError).toBeUndefined();
   });
+
+  it('includes parameter descriptions in input schema', () => {
+    const specWithDescriptions = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/channels': {
+          get: {
+            operationId: 'channels_list',
+            parameters: [
+              { name: 'query', in: 'query', description: 'Search query (URL substring)', schema: { type: 'string' } },
+              { name: 'id', in: 'query', description: 'Channel ID', schema: { type: 'integer' } },
+              { name: 'url', in: 'query', description: 'Channel URL', schema: { type: 'string' } },
+              { name: 'limit', in: 'query', description: 'Maximum number of results', schema: { type: 'integer' } },
+              { name: 'offset', in: 'query', description: 'Number of results to skip', schema: { type: 'integer' } },
+            ],
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithDescriptions as never, {
+      includeEndpoints: ['get:/channels'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const tool = tools[0];
+    const shape = tool.inputSchema._def.shape();
+    expect(shape).toBeDefined();
+    // For ZodOptional, description is in _def.innerType._def.description
+    const getDescription = (field: unknown): string | undefined => {
+      const def = (field as { _def?: { innerType?: { _def?: { description?: string } }; description?: string } })?._def;
+      return def?.innerType?._def?.description ?? def?.description;
+    };
+    expect(getDescription(shape.query)).toBe('Search query (URL substring)');
+    expect(getDescription(shape.id)).toBe('Channel ID');
+    expect(getDescription(shape.url)).toBe('Channel URL');
+    expect(getDescription(shape.limit)).toBe('Maximum number of results');
+    expect(getDescription(shape.offset)).toBe('Number of results to skip');
+  });
 });

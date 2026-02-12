@@ -50,37 +50,44 @@ function isIncluded(
   return !excludeEndpoints.some((ex) => keyNorm === ex.toLowerCase());
 }
 
-function openApiTypeToZod(schema?: OpenApiParameter['schema']): z.ZodTypeAny {
+function openApiTypeToZod(schema?: OpenApiParameter['schema'], description?: string): z.ZodTypeAny {
   const t = schema?.type ?? 'string';
   const enumVal = schema?.enum;
+  let zodType: z.ZodTypeAny;
   if (enumVal?.length) {
-    return z.enum(enumVal as [string, ...string[]]).optional();
+    zodType = z.enum(enumVal as [string, ...string[]]).optional();
+  } else {
+    switch (t) {
+      case 'integer':
+      case 'number':
+        zodType = z.number().optional();
+        break;
+      case 'boolean':
+        zodType = z.boolean().optional();
+        break;
+      case 'array':
+        zodType = z.array(z.unknown()).optional();
+        break;
+      default:
+        zodType = z.string().optional();
+    }
   }
-  switch (t) {
-    case 'integer':
-    case 'number':
-      return z.number().optional();
-    case 'boolean':
-      return z.boolean().optional();
-    case 'array':
-      return z.array(z.unknown()).optional();
-    default:
-      return z.string().optional();
-  }
+  return description ? zodType.describe(description) : zodType;
 }
 
 function buildZodShapeFromOperation(op: OpenApiOperation): z.ZodRawShape {
   const shape: z.ZodRawShape = {};
   for (const p of op.parameters ?? []) {
     if (p.in === 'query' || p.in === 'path') {
-      shape[p.name] = openApiTypeToZod(p.schema);
+      shape[p.name] = openApiTypeToZod(p.schema, p.description);
     }
   }
   const bodySchema = op.requestBody?.content?.['application/json']?.schema;
   if (bodySchema?.properties) {
     for (const [propName, propSchema] of Object.entries(bodySchema.properties)) {
       if (shape[propName] === undefined) {
-        shape[propName] = openApiTypeToZod(propSchema as { type?: string; enum?: string[] });
+        const propSchemaWithDesc = propSchema as { type?: string; description?: string; enum?: string[] };
+        shape[propName] = openApiTypeToZod(propSchemaWithDesc, propSchemaWithDesc.description);
       }
     }
   }
