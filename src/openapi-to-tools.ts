@@ -54,13 +54,14 @@ function opKey(method: string, path: string): string {
   return `${method.toLowerCase()}:${normPath(path)}`;
 }
 
-/** Tool name from path: /messages -> messages, /channels -> channels. */
+/** Tool name from path: /messages -> messages, /channels -> channels, /channels/{username} -> channels_username. */
 function pathToToolSegment(path: string): string {
   return normPath(path)
     .replace(/^\//, '')
     .replace(/\/+/g, '_')
-    .replace(/\{[^}]+\}/g, '') // remove path params for segment
-    .replace(/_$/, '') || 'index';
+    .replace(/\{([^}]+)\}/g, '_$1') // replace {paramName} with _paramName
+    .replace(/_+/g, '_') // collapse multiple underscores
+    .replace(/^_|_$/g, '') || 'index'; // remove leading/trailing underscores
 }
 
 function isIncluded(

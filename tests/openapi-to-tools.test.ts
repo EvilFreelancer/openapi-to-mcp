@@ -174,7 +174,45 @@ describe('openapi-to-tools', () => {
     });
     expect(tools).toHaveLength(2);
     const names = tools.map((t) => t.name).sort();
-    expect(names).toEqual(['pet_get', 'pet_put']);
+    // Path parameters are now included in tool names
+    expect(names).toEqual(['pet_id_get', 'pet_id_put']);
+  });
+
+  it('generates unique tool names for paths with path parameters vs without', () => {
+    const specWithPathParams = {
+      openapi: '3.0.0',
+      info: { title: 'Channels API', version: '1.0.0' },
+      paths: {
+        '/api/v1/channels/': {
+          get: {
+            operationId: 'list_channels',
+            summary: 'List Channels',
+            parameters: [{ name: 'enabled', in: 'query', schema: { type: 'boolean' } }],
+          },
+        },
+        '/api/v1/channels/{username}': {
+          get: {
+            operationId: 'get_channel',
+            summary: 'Get Channel',
+            parameters: [{ name: 'username', in: 'path', required: true, schema: { type: 'string' } }],
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithPathParams as never, {
+      includeEndpoints: [],
+      excludeEndpoints: [],
+      toolPrefix: 'parser_',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(2);
+    const names = tools.map((t) => t.name).sort();
+    // Path with variable should include variable name in tool name
+    expect(names).toContain('parser_api_v1_channels');
+    expect(names).toContain('parser_api_v1_channels_username');
+    // Names should be different
+    expect(new Set(names).size).toBe(2);
   });
 
   it('handles response with circular references without crashing', async () => {
