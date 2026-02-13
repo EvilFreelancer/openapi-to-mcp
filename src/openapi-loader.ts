@@ -11,6 +11,7 @@ export interface OpenApiSpec {
   openapi?: string;
   info?: { title?: string; version?: string; description?: string };
   paths?: Record<string, Record<string, OpenApiOperation>>;
+  parameters?: Record<string, OpenApiParameter>;
 }
 
 export interface OpenApiOperation {
@@ -42,6 +43,7 @@ export interface OpenApiParameter {
     enum?: string[];
     [key: string]: unknown;
   };
+  $ref?: string;
 }
 
 /**

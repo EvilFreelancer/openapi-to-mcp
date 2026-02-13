@@ -6,6 +6,9 @@ import { z } from 'zod';
 import axios, { AxiosInstance } from 'axios';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { OpenApiSpec, OpenApiOperation, OpenApiParameter } from './openapi-loader';
+
+// Re-export for use in this module
+type OpenApiSpecWithParams = OpenApiSpec & { parameters?: Record<string, OpenApiParameter> };
 import { logger } from './logger';
 
 export const correlationIdStorage = new AsyncLocalStorage<string>();
@@ -75,11 +78,37 @@ function openApiTypeToZod(schema?: OpenApiParameter['schema'], description?: str
   return description ? zodType.describe(description) : zodType;
 }
 
-function buildZodShapeFromOperation(op: OpenApiOperation): z.ZodRawShape {
+/**
+ * Resolve $ref parameter reference to actual parameter definition.
+ * Supports references like "#/parameters/key" to parameters defined in spec.parameters.
+ */
+function resolveParameterRef(ref: string, spec: OpenApiSpecWithParams): OpenApiParameter | null {
+  if (!ref.startsWith('#/parameters/')) {
+    return null;
+  }
+  const paramName = ref.replace('#/parameters/', '');
+  return spec.parameters?.[paramName] ?? null;
+}
+
+/**
+ * Resolve parameter: if it's a $ref, resolve it; otherwise return as-is.
+ */
+function resolveParameter(param: OpenApiParameter, spec: OpenApiSpecWithParams): OpenApiParameter | null {
+  if (param.$ref) {
+    return resolveParameterRef(param.$ref, spec);
+  }
+  return param;
+}
+
+function buildZodShapeFromOperation(op: OpenApiOperation, spec: OpenApiSpecWithParams): z.ZodRawShape {
   const shape: z.ZodRawShape = {};
   for (const p of op.parameters ?? []) {
-    if (p.in === 'query' || p.in === 'path') {
-      shape[p.name] = openApiTypeToZod(p.schema, p.description);
+    const resolved = resolveParameter(p, spec);
+    if (!resolved) continue;
+    if (resolved.in === 'query' || resolved.in === 'path') {
+      const isRequired = resolved.required === true || p.required === true;
+      const zodType = openApiTypeToZod(resolved.schema, resolved.description);
+      shape[resolved.name] = isRequired ? zodType.unwrap() : zodType;
     }
   }
   const bodySchema = op.requestBody?.content?.['application/json']?.schema;
@@ -180,12 +209,18 @@ export function openApiToTools(
 
   for (const { method, path, op, name } of ops) {
     const uniqueName = (nameCount.get(name) ?? 0) > 1 ? `${name}_${method}` : name;
-    const queryParamNames = (op.parameters ?? []).filter((p) => p.in === 'query').map((p) => p.name);
-    const pathParamNames = (op.parameters ?? []).filter((p) => p.in === 'path').map((p) => p.name);
+    
+    // Resolve all parameters (including $ref) to get actual parameter definitions
+    const resolvedParams = (op.parameters ?? [])
+      .map((p) => resolveParameter(p, spec))
+      .filter((p): p is OpenApiParameter => p !== null);
+    
+    const queryParamNames = resolvedParams.filter((p) => p.in === 'query').map((p) => p.name);
+    const pathParamNames = resolvedParams.filter((p) => p.in === 'path').map((p) => p.name);
     const bodySchema = op.requestBody?.content?.['application/json']?.schema;
     const bodyParamNames = bodySchema?.properties ? Object.keys(bodySchema.properties) : [];
 
-    const shape = buildZodShapeFromOperation(op);
+    const shape = buildZodShapeFromOperation(op, spec);
     const inputSchema = z.object(shape);
 
     const description = [op.summary, op.description].filter(Boolean).join('. ') || `API ${method.toUpperCase()} ${path}`;

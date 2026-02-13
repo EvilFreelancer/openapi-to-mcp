@@ -80,6 +80,18 @@ Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 
 Ensure the backend API is reachable at `MCP_API_BASE_URL` and that the OpenAPI spec URL (or file) returns a valid OpenAPI 3.x JSON.
 
+### Using MCP Inspector
+
+To test the server with [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector):
+
+1. Start the MCP server (see above).
+2. Run MCP Inspector: `npx @modelcontextprotocol/inspector`
+3. In the Inspector UI, select **"streamable-http"** transport type (not STDIO).
+4. Enter the server URL: `http://localhost:3100/mcp`
+5. Click "Connect".
+
+The server includes CORS support for browser-based MCP clients and maintains sessions for Streamable HTTP transport.
+
 ## Run with Docker
 
 Image on Docker Hub: [evilfreelancer/openapi-to-mcp](https://hub.docker.com/r/evilfreelancer/openapi-to-mcp). Use tag `latest` or a version tag (e.g. `v1.0.0`).
