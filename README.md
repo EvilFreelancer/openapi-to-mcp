@@ -41,6 +41,8 @@ Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 
 ## Environment variables (MCP_ prefix)
 
+Environment variables are loaded from `.env` file in the project root (using `dotenv`). You can also set them directly in your shell environment. See `.env.example` for a template.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MCP_API_BASE_URL` | Base URL for API requests | `http://127.0.0.1:3000` |

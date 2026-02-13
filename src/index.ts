@@ -1,3 +1,7 @@
+// Load environment variables from .env file (if present)
+// Must be imported before any other modules that use process.env
+import 'dotenv/config';
+
 import { loadConfig } from './config';
 import { loadOpenApiSpec } from './openapi-loader';
 import { openApiToTools } from './openapi-to-tools';
