@@ -39,7 +39,7 @@ export interface McpConfig {
   toolPrefix: string;
   /** Path to custom instructions file. */
   instructionsFile: string | null;
-  /** Instructions combination mode: none, replace, append, prepend. */
+  /** Instructions combination mode: default, replace, append, prepend. */
   instructionsMode: InstructionsMode;
 }
 

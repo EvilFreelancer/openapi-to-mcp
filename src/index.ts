@@ -53,7 +53,7 @@ async function main(): Promise<void> {
   const openApiInstructions = spec.info?.description || null;
 
   let finalInstructions: string | null = null;
-  if (config.instructionsMode !== InstructionsMode.NONE && config.instructionsFile) {
+  if (config.instructionsMode !== InstructionsMode.DEFAULT && config.instructionsFile) {
     try {
       const fileInstructions = await loadInstructions(config.instructionsFile);
       finalInstructions = combineInstructions(openApiInstructions, fileInstructions, config.instructionsMode);

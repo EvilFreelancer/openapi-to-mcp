@@ -35,7 +35,7 @@ For E2E testing, pass `X-Correlation-ID` header with your request to track it ac
 1. **Load OpenAPI spec** from `MCP_OPENAPI_SPEC` (URL starting with `http://` or `https://`, or file path).
 2. **Collect operations** (method + path). Filter: if `MCP_INCLUDE_ENDPOINTS` is set, keep only those; otherwise drop any in `MCP_EXCLUDE_ENDPOINTS`. Include has priority over exclude.
 3. **For each operation** create an MCP tool: name = `MCP_TOOL_PREFIX` + path segment (e.g. `api_` + `messages` = `api_messages`). If the same path segment is used by more than one method (e.g. GET and PUT on `/pet/{id}`), the tool name is made unique by appending the method (e.g. `pet_get`, `pet_put`). Input schema from parameters and requestBody (Zod), handler = HTTP call to `MCP_API_BASE_URL`.
-4. **Load MCP server instructions**: by default uses `info.description` from OpenAPI spec. Optionally, load custom instructions from `MCP_INSTRUCTIONS_FILE` and combine with OpenAPI description according to `MCP_INSTRUCTIONS_MODE` (none/replace/append/prepend). If file loading fails, server logs a warning and continues with OpenAPI instructions only.
+4. **Load MCP server instructions**: by default uses `info.description` from OpenAPI spec. Optionally, load custom instructions from `MCP_INSTRUCTIONS_FILE` and combine with OpenAPI description according to `MCP_INSTRUCTIONS_MODE` (default/replace/append/prepend). If file loading fails, server logs a warning and continues with OpenAPI instructions only.
 
 Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 
@@ -53,7 +53,7 @@ Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 | `MCP_HOST` | Bind host | `0.0.0.0` |
 | `MCP_LOG_LEVEL` | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` (case-insensitive) | `INFO` |
 | `MCP_INSTRUCTIONS_FILE` | Path to custom instructions file (text file with MCP server instructions) | - |
-| `MCP_INSTRUCTIONS_MODE` | How to combine custom instructions with OpenAPI spec description: `none` (ignore custom, use only OpenAPI), `replace` (use only custom file, ignore OpenAPI), `append` (OpenAPI + custom file), `prepend` (custom file + OpenAPI). Case-insensitive. | `none` |
+| `MCP_INSTRUCTIONS_MODE` | How to combine custom instructions with OpenAPI spec description: `default` (use only OpenAPI description, ignore custom file), `replace` (use only custom file, ignore OpenAPI), `append` (OpenAPI + custom file), `prepend` (custom file + OpenAPI). Case-insensitive. | `default` |
 
 `MCP_OPENAPI_SPEC` must be set. If it starts with `http://` or `https://`, it's treated as a URL; otherwise, it's treated as a file path.
 

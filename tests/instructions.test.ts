@@ -62,15 +62,15 @@ describe('instructions-loader', () => {
   describe('combineInstructions', () => {
     const openApiInstructions = 'OpenAPI description';
 
-    it('returns null when mode is none', () => {
-      const result = combineInstructions(openApiInstructions, null, InstructionsMode.NONE);
-      expect(result).toBeNull();
+    it('returns OpenAPI instructions when mode is default', () => {
+      const result = combineInstructions(openApiInstructions, null, InstructionsMode.DEFAULT);
+      expect(result).toBe(openApiInstructions);
     });
 
-    it('returns null when mode is none even if file instructions exist', () => {
+    it('returns OpenAPI instructions when mode is default even if file instructions exist', () => {
       const fileInstructions = 'File instructions';
-      const result = combineInstructions(openApiInstructions, fileInstructions, InstructionsMode.NONE);
-      expect(result).toBeNull();
+      const result = combineInstructions(openApiInstructions, fileInstructions, InstructionsMode.DEFAULT);
+      expect(result).toBe(openApiInstructions);
     });
 
     it('replaces with file instructions when mode is replace and file exists', () => {

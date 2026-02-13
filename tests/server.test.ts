@@ -15,7 +15,7 @@ describe('server', () => {
     excludeEndpoints: [],
     toolPrefix: '',
     instructionsFile: null,
-    instructionsMode: InstructionsMode.NONE,
+    instructionsMode: InstructionsMode.DEFAULT,
   };
 
   const mockTool: ToolFromOpenApi = {

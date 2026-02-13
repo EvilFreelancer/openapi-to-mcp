@@ -63,7 +63,7 @@ describe('config', () => {
     expect(config.excludeEndpoints).toEqual([]);
     expect(config.toolPrefix).toBe('');
     expect(config.instructionsFile).toBeNull();
-    expect(config.instructionsMode).toBe(InstructionsMode.NONE);
+    expect(config.instructionsMode).toBe(InstructionsMode.DEFAULT);
   });
 
   it('supports backward compatibility with MCP_OPENAPI_SPEC_URL', () => {
@@ -97,10 +97,10 @@ describe('config', () => {
     expect(config.instructionsMode).toBe(InstructionsMode.APPEND);
   });
 
-  it('defaults instructions mode to none when not set', () => {
+  it('defaults instructions mode to default when not set', () => {
     delete process.env.MCP_INSTRUCTIONS_MODE;
     const config = loadConfig();
-    expect(config.instructionsMode).toBe(InstructionsMode.NONE);
+    expect(config.instructionsMode).toBe(InstructionsMode.DEFAULT);
   });
 
   it('parses instructions mode case-insensitively', () => {
@@ -113,14 +113,14 @@ describe('config', () => {
     process.env.MCP_INSTRUCTIONS_MODE = 'APPEND';
     expect(loadConfig().instructionsMode).toBe(InstructionsMode.APPEND);
 
-    process.env.MCP_INSTRUCTIONS_MODE = 'NONE';
-    expect(loadConfig().instructionsMode).toBe(InstructionsMode.NONE);
+    process.env.MCP_INSTRUCTIONS_MODE = 'DEFAULT';
+    expect(loadConfig().instructionsMode).toBe(InstructionsMode.DEFAULT);
   });
 
-  it('defaults to none for invalid instructions mode', () => {
+  it('defaults to default for invalid instructions mode', () => {
     process.env.MCP_INSTRUCTIONS_MODE = 'invalid';
     const config = loadConfig();
-    expect(config.instructionsMode).toBe(InstructionsMode.NONE);
+    expect(config.instructionsMode).toBe(InstructionsMode.DEFAULT);
   });
 
   it('trims instructions file path', () => {

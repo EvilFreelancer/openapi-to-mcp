@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { logger } from './logger';
 
 export enum InstructionsMode {
-  NONE = 'none',
+  DEFAULT = 'default',
   REPLACE = 'replace',
   APPEND = 'append',
   PREPEND = 'prepend',
@@ -37,7 +37,7 @@ export async function loadInstructions(filePath: string | null): Promise<string 
  * Combines OpenAPI instructions with file instructions according to the specified mode.
  * @param openApiInstructions Instructions from OpenAPI spec info.description (can be null or empty).
  * @param fileInstructions Instructions loaded from file (can be null).
- * @param mode Combination mode: none, replace, append, prepend.
+ * @param mode Combination mode: default, replace, append, prepend.
  * @returns Combined instructions string, or null if no instructions available.
  */
 export function combineInstructions(
@@ -45,8 +45,8 @@ export function combineInstructions(
   fileInstructions: string | null,
   mode: InstructionsMode,
 ): string | null {
-  if (mode === InstructionsMode.NONE) {
-    return null;
+  if (mode === InstructionsMode.DEFAULT) {
+    return openApiInstructions || null;
   }
 
   if (mode === InstructionsMode.REPLACE) {
@@ -82,11 +82,11 @@ export function combineInstructions(
 /**
  * Parses instructions mode from environment variable.
  * @param value Environment variable value (case-insensitive).
- * @returns InstructionsMode enum value, defaults to NONE if invalid or not set.
+ * @returns InstructionsMode enum value, defaults to DEFAULT if invalid or not set.
  */
 export function parseInstructionsMode(value: string | undefined): InstructionsMode {
   if (!value || value.trim() === '') {
-    return InstructionsMode.NONE;
+    return InstructionsMode.DEFAULT;
   }
 
   const normalized = value.trim().toLowerCase();
@@ -97,10 +97,13 @@ export function parseInstructionsMode(value: string | undefined): InstructionsMo
       return InstructionsMode.APPEND;
     case 'prepend':
       return InstructionsMode.PREPEND;
+    case 'default':
+      return InstructionsMode.DEFAULT;
     case 'none':
-      return InstructionsMode.NONE;
+      // Backward compatibility: 'none' is treated as 'default'
+      return InstructionsMode.DEFAULT;
     default:
-      logger.warn('startup', `Invalid MCP_INSTRUCTIONS_MODE value: ${value}. Using 'none'`, { value });
-      return InstructionsMode.NONE;
+      logger.warn('startup', `Invalid MCP_INSTRUCTIONS_MODE value: ${value}. Using 'default'`, { value });
+      return InstructionsMode.DEFAULT;
   }
 }
