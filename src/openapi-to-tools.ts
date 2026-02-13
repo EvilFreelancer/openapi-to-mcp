@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import axios, { AxiosInstance } from 'axios';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import TurndownService from 'turndown';
 import type { OpenApiSpec, OpenApiOperation, OpenApiParameter } from './openapi-loader';
 
 // Re-export for use in this module
@@ -18,6 +19,27 @@ export interface ToolFromOpenApi {
   description: string;
   inputSchema: z.ZodObject<z.ZodRawShape>;
   handler: (args: Record<string, unknown>) => Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }>;
+}
+
+/**
+ * Convert HTML to Markdown using TurndownService.
+ * Returns the original string if conversion fails or if input is not HTML-like.
+ */
+export function htmlToMarkdown(html: string): string {
+  try {
+    const turndownService = new TurndownService();
+    return turndownService.turndown(html);
+  } catch (e) {
+    // If conversion fails, return original string
+    return html;
+  }
+}
+
+/**
+ * Check if a string contains HTML tags.
+ */
+export function containsHtml(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text);
 }
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'] as const;
@@ -53,7 +75,12 @@ function isIncluded(
   return !excludeEndpoints.some((ex) => keyNorm === ex.toLowerCase());
 }
 
-function openApiTypeToZod(schema?: OpenApiParameter['schema'], description?: string, required?: boolean): z.ZodTypeAny {
+function openApiTypeToZod(
+  schema?: OpenApiParameter['schema'],
+  description?: string,
+  required?: boolean,
+  convertHtmlToMarkdown?: boolean,
+): z.ZodTypeAny {
   const t = schema?.type ?? 'string';
   const enumVal = schema?.enum;
   let zodType: z.ZodTypeAny;
@@ -78,7 +105,15 @@ function openApiTypeToZod(schema?: OpenApiParameter['schema'], description?: str
   if (!required) {
     zodType = zodType.optional();
   }
-  return description ? zodType.describe(description) : zodType;
+  if (description) {
+    let finalDescription = description;
+    // Convert HTML to Markdown if enabled and description contains HTML
+    if (convertHtmlToMarkdown !== false && containsHtml(finalDescription)) {
+      finalDescription = htmlToMarkdown(finalDescription);
+    }
+    return zodType.describe(finalDescription);
+  }
+  return zodType;
 }
 
 /**
@@ -113,14 +148,18 @@ function resolveParameter(param: OpenApiParameter, spec: OpenApiSpecWithParams):
   return param;
 }
 
-function buildZodShapeFromOperation(op: OpenApiOperation, spec: OpenApiSpecWithParams): z.ZodRawShape {
+function buildZodShapeFromOperation(
+  op: OpenApiOperation,
+  spec: OpenApiSpecWithParams,
+  convertHtmlToMarkdown?: boolean,
+): z.ZodRawShape {
   const shape: z.ZodRawShape = {};
   for (const p of op.parameters ?? []) {
     const resolved = resolveParameter(p, spec);
     if (!resolved) continue;
     if (resolved.in === 'query' || resolved.in === 'path') {
       const isRequired = resolved.required === true || p.required === true;
-      shape[resolved.name] = openApiTypeToZod(resolved.schema, resolved.description, isRequired);
+      shape[resolved.name] = openApiTypeToZod(resolved.schema, resolved.description, isRequired, convertHtmlToMarkdown);
     }
   }
   const bodySchema = op.requestBody?.content?.['application/json']?.schema;
@@ -130,7 +169,7 @@ function buildZodShapeFromOperation(op: OpenApiOperation, spec: OpenApiSpecWithP
       if (shape[propName] === undefined) {
         const propSchemaWithDesc = propSchema as { type?: string; description?: string; enum?: string[] };
         const isRequired = requiredFields.includes(propName);
-        shape[propName] = openApiTypeToZod(propSchemaWithDesc, propSchemaWithDesc.description, isRequired);
+        shape[propName] = openApiTypeToZod(propSchemaWithDesc, propSchemaWithDesc.description, isRequired, convertHtmlToMarkdown);
       }
     }
   }
@@ -205,6 +244,7 @@ export function openApiToTools(
     excludeEndpoints: string[];
     toolPrefix: string;
     apiBaseUrl: string;
+    convertHtmlToMarkdown?: boolean;
     axiosInstance?: AxiosInstance;
   },
 ): ToolFromOpenApi[] {
@@ -234,10 +274,22 @@ export function openApiToTools(
     const bodySchema = op.requestBody?.content?.['application/json']?.schema;
     const bodyParamNames = bodySchema?.properties ? Object.keys(bodySchema.properties) : [];
 
-    const shape = buildZodShapeFromOperation(op, spec);
+    const shape = buildZodShapeFromOperation(op, spec, config.convertHtmlToMarkdown);
     const inputSchema = z.object(shape);
 
-    const description = [op.summary, op.description].filter(Boolean).join('. ') || `API ${method.toUpperCase()} ${path}`;
+    let description = [op.summary, op.description].filter(Boolean).join('. ') || `API ${method.toUpperCase()} ${path}`;
+    
+    // Convert HTML to Markdown if enabled (default: true) and description contains HTML
+    const shouldConvert = config.convertHtmlToMarkdown !== false;
+    if (shouldConvert && containsHtml(description)) {
+      const originalDescription = description;
+      description = htmlToMarkdown(description);
+      logger.debug('tool-build', `Converted HTML to Markdown for tool ${uniqueName}`, {
+        originalLength: originalDescription.length,
+        convertedLength: description.length,
+        hadHtml: true,
+      });
+    }
 
     const handler = async (args: Record<string, unknown>) => {
       const correlationId = correlationIdStorage.getStore() || 'unknown';

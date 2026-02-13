@@ -334,6 +334,138 @@ describe('openapi-to-tools', () => {
     expect(getDescription(shape.offset)).toBe('Number of results to skip');
   });
 
+  it('converts HTML in parameter descriptions to Markdown when convertHtmlToMarkdown is true', () => {
+    const specWithHtmlInParams = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/search': {
+          get: {
+            operationId: 'search',
+            parameters: [
+              { name: 'query', in: 'query', description: 'Search keyword (<b>required</b> if no other filter)', schema: { type: 'string' } },
+              { name: 'status', in: 'query', description: 'Filter by status: <b>active</b>, <b>inactive</b>, or <b>pending</b>', schema: { type: 'string' } },
+            ],
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithHtmlInParams as never, {
+      includeEndpoints: ['get:/search'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      convertHtmlToMarkdown: true,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const tool = tools[0];
+    const shape = tool.inputSchema._def.shape();
+    const getDescription = (field: unknown): string | undefined => {
+      const def = (field as { _def?: { innerType?: { _def?: { description?: string } }; description?: string } })?._def;
+      return def?.innerType?._def?.description ?? def?.description;
+    };
+    const queryDesc = getDescription(shape.query);
+    const statusDesc = getDescription(shape.status);
+    // HTML should be converted to Markdown
+    expect(queryDesc).not.toContain('<b>');
+    expect(queryDesc).not.toContain('</b>');
+    expect(statusDesc).not.toContain('<b>');
+    expect(statusDesc).not.toContain('</b>');
+    // Should contain markdown equivalents
+    expect(queryDesc).toContain('**required**');
+    expect(statusDesc).toContain('**active**');
+    expect(statusDesc).toContain('**inactive**');
+    expect(statusDesc).toContain('**pending**');
+  });
+
+  it('does not convert HTML in parameter descriptions when convertHtmlToMarkdown is false', () => {
+    const specWithHtmlInParams = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/search': {
+          get: {
+            operationId: 'search',
+            parameters: [
+              { name: 'query', in: 'query', description: 'Search keyword (<b>required</b>)', schema: { type: 'string' } },
+            ],
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithHtmlInParams as never, {
+      includeEndpoints: ['get:/search'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      convertHtmlToMarkdown: false,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const tool = tools[0];
+    const shape = tool.inputSchema._def.shape();
+    const getDescription = (field: unknown): string | undefined => {
+      const def = (field as { _def?: { innerType?: { _def?: { description?: string } }; description?: string } })?._def;
+      return def?.innerType?._def?.description ?? def?.description;
+    };
+    const queryDesc = getDescription(shape.query);
+    // HTML should remain unchanged
+    expect(queryDesc).toContain('<b>required</b>');
+  });
+
+  it('converts HTML in requestBody property descriptions to Markdown when convertHtmlToMarkdown is true', () => {
+    const specWithHtmlInBody = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/users': {
+          post: {
+            operationId: 'createUser',
+            requestBody: {
+              content: {
+                'application/json': {
+                  schema: {
+                    required: ['email'],
+                    properties: {
+                      email: { type: 'string', description: 'User email address (<b>required</b>)' },
+                      name: { type: 'string', description: 'Full name (<i>optional</i>)' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithHtmlInBody as never, {
+      includeEndpoints: ['post:/users'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      convertHtmlToMarkdown: true,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const tool = tools[0];
+    const shape = tool.inputSchema._def.shape();
+    const getDescription = (field: unknown): string | undefined => {
+      const def = (field as { _def?: { innerType?: { _def?: { description?: string } }; description?: string } })?._def;
+      return def?.innerType?._def?.description ?? def?.description;
+    };
+    const emailDesc = getDescription(shape.email);
+    const nameDesc = getDescription(shape.name);
+    // HTML should be converted to Markdown
+    expect(emailDesc).not.toContain('<b>');
+    expect(emailDesc).not.toContain('</b>');
+    expect(nameDesc).not.toContain('<i>');
+    expect(nameDesc).not.toContain('</i>');
+    // Should contain markdown equivalents
+    expect(emailDesc).toContain('**required**');
+    expect(nameDesc).toContain('_optional_');
+  });
+
   it('resolves $ref parameter references to actual parameter definitions', () => {
     const specWithRefs = {
       openapi: '3.0.0',
@@ -397,5 +529,155 @@ describe('openapi-to-tools', () => {
     // Check that optional parameters are optional
     const queryDef = shape.query._def;
     expect(queryDef.typeName).toBe('ZodOptional');
+  });
+
+  it('converts HTML in operation description to Markdown when convertHtmlToMarkdown is true (default)', () => {
+    const specWithHtml = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/users': {
+          get: {
+            operationId: 'listUsers',
+            summary: 'List users',
+            description: 'Retrieve a list of users from the system.<br/><br/>You can filter results by providing a user identifier (<b>user_id</b>), email address (<b>email</b>), or status (<b>status</b>). At least one filter parameter is required.',
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithHtml as never, {
+      includeEndpoints: ['get:/users'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      convertHtmlToMarkdown: true,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const description = tools[0].description;
+    // HTML should be converted to Markdown
+    expect(description).not.toContain('<br/>');
+    expect(description).not.toContain('<b>');
+    expect(description).not.toContain('</b>');
+    // Should contain markdown equivalents (turndown escapes underscores in middle of words)
+    expect(description).toContain('**user\\_id**');
+    expect(description).toContain('**email**');
+    expect(description).toContain('**status**');
+  });
+
+  it('converts HTML in operation description to Markdown by default (convertHtmlToMarkdown not specified)', () => {
+    const specWithHtml = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/search': {
+          get: {
+            operationId: 'search',
+            description: 'Search with <b>bold</b> and <i>italic</i> text.',
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithHtml as never, {
+      includeEndpoints: ['get:/search'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const description = tools[0].description;
+    // HTML should be converted to Markdown (default behavior)
+    expect(description).not.toContain('<b>');
+    expect(description).not.toContain('</b>');
+    expect(description).not.toContain('<i>');
+    expect(description).not.toContain('</i>');
+  });
+
+  it('does not convert HTML when convertHtmlToMarkdown is false', () => {
+    const specWithHtml = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/search': {
+          get: {
+            operationId: 'search',
+            description: 'Search with <b>bold</b> text.',
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithHtml as never, {
+      includeEndpoints: ['get:/search'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      convertHtmlToMarkdown: false,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const description = tools[0].description;
+    // HTML should remain unchanged
+    expect(description).toContain('<b>bold</b>');
+  });
+
+  it('does not modify plain text descriptions without HTML', () => {
+    const specWithPlainText = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/search': {
+          get: {
+            operationId: 'search',
+            description: 'Plain text description without any HTML tags.',
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithPlainText as never, {
+      includeEndpoints: ['get:/search'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      convertHtmlToMarkdown: true,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const description = tools[0].description;
+    expect(description).toBe('Plain text description without any HTML tags.');
+  });
+
+  it('converts HTML in summary when combined with description', () => {
+    const specWithHtml = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {
+        '/search': {
+          get: {
+            operationId: 'search',
+            summary: 'Search with <b>bold</b>',
+            description: 'Description with <i>italic</i> text.',
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithHtml as never, {
+      includeEndpoints: ['get:/search'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      convertHtmlToMarkdown: true,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const description = tools[0].description;
+    // Both summary and description should have HTML converted
+    expect(description).not.toContain('<b>');
+    expect(description).not.toContain('</b>');
+    expect(description).not.toContain('<i>');
+    expect(description).not.toContain('</i>');
+    expect(description).toContain('**bold**');
+    // turndown converts <i> to _italic_ (underscore), not *italic* (asterisk)
+    expect(description).toContain('_italic_');
   });
 });

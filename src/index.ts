@@ -4,7 +4,7 @@ import 'dotenv/config';
 
 import { loadConfig } from './config';
 import { loadOpenApiSpec } from './openapi-loader';
-import { openApiToTools } from './openapi-to-tools';
+import { openApiToTools, htmlToMarkdown, containsHtml } from './openapi-to-tools';
 import { createMcpApp } from './server';
 import { logger } from './logger';
 import { loadInstructions, combineInstructions, InstructionsMode } from './instructions-loader';
@@ -44,6 +44,7 @@ async function main(): Promise<void> {
     excludeEndpoints: config.excludeEndpoints,
     toolPrefix: config.toolPrefix,
     apiBaseUrl: config.apiBaseUrl,
+    convertHtmlToMarkdown: config.convertHtmlToMarkdown,
   });
 
   if (tools.length === 0) {
@@ -54,7 +55,12 @@ async function main(): Promise<void> {
     });
   }
 
-  const openApiInstructions = spec.info?.description || null;
+  let openApiInstructions = spec.info?.description || null;
+  
+  // Convert HTML to Markdown in server description if enabled
+  if (openApiInstructions && config.convertHtmlToMarkdown !== false && containsHtml(openApiInstructions)) {
+    openApiInstructions = htmlToMarkdown(openApiInstructions);
+  }
 
   let finalInstructions: string | null = null;
   if (config.instructionsMode !== InstructionsMode.DEFAULT && config.instructionsFile) {

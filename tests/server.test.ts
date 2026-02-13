@@ -16,6 +16,7 @@ describe('server', () => {
     toolPrefix: '',
     instructionsFile: null,
     instructionsMode: InstructionsMode.DEFAULT,
+    convertHtmlToMarkdown: true,
   };
 
   const mockTool: ToolFromOpenApi = {

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { loadInstructions, InstructionsMode, combineInstructions } from '../src/instructions-loader';
+import { htmlToMarkdown, containsHtml } from '../src/openapi-to-tools';
 
 describe('instructions-loader', () => {
   let tempDir: string;
@@ -138,6 +139,33 @@ describe('instructions-loader', () => {
     it('returns null when both are null and mode is prepend', () => {
       const result = combineInstructions(null, null, InstructionsMode.PREPEND);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('HTML to Markdown conversion for info.description', () => {
+    it('converts HTML in info.description to Markdown', () => {
+      const htmlDescription = 'API Server Description.<br/><br/>This server provides access to <b>RESTful</b> endpoints for managing resources.';
+      const converted = htmlToMarkdown(htmlDescription);
+      
+      // HTML should be converted to Markdown
+      expect(converted).not.toContain('<br/>');
+      expect(converted).not.toContain('<b>');
+      expect(converted).not.toContain('</b>');
+      // Should contain markdown equivalents
+      expect(converted).toContain('**RESTful**');
+    });
+
+    it('does not modify plain text descriptions without HTML', () => {
+      const plainText = 'API Server Description. This server provides access to RESTful endpoints.';
+      const converted = htmlToMarkdown(plainText);
+      expect(converted).toBe(plainText);
+    });
+
+    it('detects HTML tags correctly', () => {
+      expect(containsHtml('Text with <b>bold</b> tag')).toBe(true);
+      expect(containsHtml('Text with <br/> tag')).toBe(true);
+      expect(containsHtml('Plain text without tags')).toBe(false);
+      expect(containsHtml('Text with < symbol but no tag')).toBe(false);
     });
   });
 });

@@ -41,6 +41,8 @@ export interface McpConfig {
   instructionsFile: string | null;
   /** Instructions combination mode: default, replace, append, prepend. */
   instructionsMode: InstructionsMode;
+  /** Convert HTML tags in descriptions to Markdown. */
+  convertHtmlToMarkdown: boolean;
 }
 
 const DEFAULT_SERVER_NAME = 'openapi-to-mcp';
@@ -64,6 +66,7 @@ export function loadConfig(): McpConfig {
   const toolPrefix = process.env.MCP_TOOL_PREFIX ?? '';
   const instructionsFile = process.env.MCP_INSTRUCTIONS_FILE?.trim() || null;
   const instructionsMode = parseInstructionsMode(process.env.MCP_INSTRUCTIONS_MODE);
+  const convertHtmlToMarkdown = process.env.MCP_CONVERT_HTML_TO_MARKDOWN !== 'false';
 
   return {
     serverName,
@@ -76,5 +79,6 @@ export function loadConfig(): McpConfig {
     toolPrefix,
     instructionsFile,
     instructionsMode,
+    convertHtmlToMarkdown,
   };
 }

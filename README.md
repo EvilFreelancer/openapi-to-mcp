@@ -56,6 +56,7 @@ Environment variables are loaded from `.env` file in the project root (using `do
 | `MCP_LOG_LEVEL` | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` (case-insensitive) | `INFO` |
 | `MCP_INSTRUCTIONS_FILE` | Path to custom instructions file (text file with MCP server instructions) | - |
 | `MCP_INSTRUCTIONS_MODE` | How to combine custom instructions with OpenAPI spec description: `default` (use only OpenAPI description, ignore custom file), `replace` (use only custom file, ignore OpenAPI), `append` (OpenAPI + custom file), `prepend` (custom file + OpenAPI). Case-insensitive. | `default` |
+| `MCP_CONVERT_HTML_TO_MARKDOWN` | Convert HTML tags in operation descriptions to Markdown format. Set to `false` to disable. | `true` |
 
 `MCP_OPENAPI_SPEC` must be set. If it starts with `http://` or `https://`, it's treated as a URL; otherwise, it's treated as a file path.
 
