@@ -45,46 +45,57 @@ export interface OpenApiParameter {
 }
 
 /**
- * Load OpenAPI spec from URL or from file. URL takes precedence if both are provided.
+ * Determines if the spec source is a URL or a file path.
+ * @param specSource The spec source string (URL or file path).
+ * @returns true if it's a URL, false if it's a file path.
  */
-export async function loadOpenApiSpec(
-  specUrl: string | null,
-  specFile: string | null,
-): Promise<OpenApiSpec> {
+function isUrl(specSource: string): boolean {
+  const trimmed = specSource.trim().toLowerCase();
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://');
+}
+
+/**
+ * Load OpenAPI spec from URL or from file.
+ * Automatically detects if the source is a URL (starts with http:// or https://) or a file path.
+ */
+export async function loadOpenApiSpec(specSource: string | null): Promise<OpenApiSpec> {
   const correlationId = 'loader';
-  if (specUrl) {
-    logger.debug(correlationId, `Loading OpenAPI spec from URL: ${specUrl}`);
+  if (!specSource || specSource.trim() === '') {
+    const error = new Error('MCP_OPENAPI_SPEC must be set');
+    logger.error(correlationId, error.message);
+    throw error;
+  }
+
+  const trimmed = specSource.trim();
+  if (isUrl(trimmed)) {
+    logger.debug(correlationId, `Loading OpenAPI spec from URL: ${trimmed}`);
     try {
-      const res = await axios.get(specUrl, { timeout: 15000, responseType: 'json' });
+      const res = await axios.get(trimmed, { timeout: 15000, responseType: 'json' });
       logger.debug(correlationId, 'OpenAPI spec loaded from URL', {
-        url: specUrl,
+        url: trimmed,
         status: res.status,
         contentType: res.headers['content-type'],
       });
       return res.data as OpenApiSpec;
     } catch (err) {
-      logger.error(correlationId, `Failed to load OpenAPI spec from URL: ${specUrl}`, err instanceof Error ? err : new Error(String(err)));
+      logger.error(correlationId, `Failed to load OpenAPI spec from URL: ${trimmed}`, err instanceof Error ? err : new Error(String(err)));
       throw err;
     }
   }
-  if (specFile) {
-    logger.debug(correlationId, `Loading OpenAPI spec from file: ${specFile}`);
-    try {
-      const absolutePath = path.isAbsolute(specFile) ? specFile : path.resolve(process.cwd(), specFile);
-      logger.debug(correlationId, `Resolved file path: ${absolutePath}`);
-      const raw = fs.readFileSync(absolutePath, 'utf-8');
-      const data = JSON.parse(raw) as OpenApiSpec;
-      logger.debug(correlationId, 'OpenAPI spec loaded from file', {
-        file: absolutePath,
-        size: raw.length,
-      });
-      return data;
-    } catch (err) {
-      logger.error(correlationId, `Failed to load OpenAPI spec from file: ${specFile}`, err instanceof Error ? err : new Error(String(err)));
-      throw err;
-    }
+
+  logger.debug(correlationId, `Loading OpenAPI spec from file: ${trimmed}`);
+  try {
+    const absolutePath = path.isAbsolute(trimmed) ? trimmed : path.resolve(process.cwd(), trimmed);
+    logger.debug(correlationId, `Resolved file path: ${absolutePath}`);
+    const raw = fs.readFileSync(absolutePath, 'utf-8');
+    const data = JSON.parse(raw) as OpenApiSpec;
+    logger.debug(correlationId, 'OpenAPI spec loaded from file', {
+      file: absolutePath,
+      size: raw.length,
+    });
+    return data;
+  } catch (err) {
+    logger.error(correlationId, `Failed to load OpenAPI spec from file: ${trimmed}`, err instanceof Error ? err : new Error(String(err)));
+    throw err;
   }
-  const error = new Error('Either MCP_OPENAPI_SPEC_URL or MCP_OPENAPI_SPEC_FILE must be set');
-  logger.error(correlationId, error.message);
-  throw error;
 }

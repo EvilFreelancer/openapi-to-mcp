@@ -32,9 +32,10 @@ The server includes comprehensive logging with correlation ID support for reques
 
 For E2E testing, pass `X-Correlation-ID` header with your request to track it across all logs.
 
-1. **Load OpenAPI spec** from `MCP_OPENAPI_SPEC_URL` (preferred) or `MCP_OPENAPI_SPEC_FILE`.
+1. **Load OpenAPI spec** from `MCP_OPENAPI_SPEC` (URL starting with `http://` or `https://`, or file path).
 2. **Collect operations** (method + path). Filter: if `MCP_INCLUDE_ENDPOINTS` is set, keep only those; otherwise drop any in `MCP_EXCLUDE_ENDPOINTS`. Include has priority over exclude.
 3. **For each operation** create an MCP tool: name = `MCP_TOOL_PREFIX` + path segment (e.g. `api_` + `messages` = `api_messages`). If the same path segment is used by more than one method (e.g. GET and PUT on `/pet/{id}`), the tool name is made unique by appending the method (e.g. `pet_get`, `pet_put`). Input schema from parameters and requestBody (Zod), handler = HTTP call to `MCP_API_BASE_URL`.
+4. **Load MCP server instructions**: by default uses `info.description` from OpenAPI spec. Optionally, load custom instructions from `MCP_INSTRUCTIONS_FILE` and combine with OpenAPI description according to `MCP_INSTRUCTIONS_MODE` (none/replace/append/prepend). If file loading fails, server logs a warning and continues with OpenAPI instructions only.
 
 Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 
@@ -43,8 +44,7 @@ Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MCP_API_BASE_URL` | Base URL for API requests | `http://127.0.0.1:3000` |
-| `MCP_OPENAPI_SPEC_URL` | URL of OpenAPI spec (e.g. `http://api:3000/openapi.json`). Takes precedence over file. | - |
-| `MCP_OPENAPI_SPEC_FILE` | Path to OpenAPI JSON file (used if URL not set) | - |
+| `MCP_OPENAPI_SPEC` | OpenAPI spec source: URL (starts with `http://` or `https://`) or file path (e.g. `http://api:3000/openapi.json` or `./openapi.json`). Automatically detects URL vs file. | - |
 | `MCP_INCLUDE_ENDPOINTS` | Comma-separated `method:path` (e.g. `get:/messages,get:/channels`). If set, only these become tools. | - |
 | `MCP_EXCLUDE_ENDPOINTS` | Comma-separated `method:path` to exclude. Ignored for endpoints in include. | - |
 | `MCP_TOOL_PREFIX` | Prefix for tool names (e.g. `api_` -> `api_messages`, `api_channels`) | (empty) |
@@ -52,8 +52,12 @@ Transport: **Streamable HTTP**. Endpoint: **POST /mcp** and **GET /mcp**.
 | `MCP_PORT` | Port for Streamable HTTP server | `3100` |
 | `MCP_HOST` | Bind host | `0.0.0.0` |
 | `MCP_LOG_LEVEL` | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` (case-insensitive) | `INFO` |
+| `MCP_INSTRUCTIONS_FILE` | Path to custom instructions file (text file with MCP server instructions) | - |
+| `MCP_INSTRUCTIONS_MODE` | How to combine custom instructions with OpenAPI spec description: `none` (ignore custom, use only OpenAPI), `replace` (use only custom file, ignore OpenAPI), `append` (OpenAPI + custom file), `prepend` (custom file + OpenAPI). Case-insensitive. | `none` |
 
-At least one of `MCP_OPENAPI_SPEC_URL` or `MCP_OPENAPI_SPEC_FILE` must be set.
+`MCP_OPENAPI_SPEC` must be set. If it starts with `http://` or `https://`, it's treated as a URL; otherwise, it's treated as a file path.
+
+**Backward compatibility**: `MCP_OPENAPI_SPEC_URL` and `MCP_OPENAPI_SPEC_FILE` are still supported but deprecated. `MCP_OPENAPI_SPEC` takes precedence if set.
 
 ## Run with npm (local)
 
@@ -61,7 +65,7 @@ At least one of `MCP_OPENAPI_SPEC_URL` or `MCP_OPENAPI_SPEC_FILE` must be set.
 
    ```bash
    cp .env.example .env
-   # Edit .env: MCP_OPENAPI_SPEC_URL or MCP_OPENAPI_SPEC_FILE, MCP_API_BASE_URL
+   # Edit .env: MCP_OPENAPI_SPEC (URL or file path), MCP_API_BASE_URL
    ```
 
 2. Install, build, and start:
@@ -84,7 +88,7 @@ Image on Docker Hub: [evilfreelancer/openapi-to-mcp](https://hub.docker.com/r/ev
 
    ```bash
    docker run --rm -p 3100:3100 \
-     -e MCP_OPENAPI_SPEC_URL=http://host.docker.internal:3000/openapi.json \
+     -e MCP_OPENAPI_SPEC=http://host.docker.internal:3000/openapi.json \
      -e MCP_API_BASE_URL=http://host.docker.internal:3000 \
      evilfreelancer/openapi-to-mcp:latest
    ```
@@ -94,7 +98,7 @@ Image on Docker Hub: [evilfreelancer/openapi-to-mcp](https://hub.docker.com/r/ev
    ```bash
    docker run --rm -p 3100:3100 \
      -v $(pwd)/openapi.json:/app/openapi.json:ro \
-     -e MCP_OPENAPI_SPEC_FILE=/app/openapi.json \
+     -e MCP_OPENAPI_SPEC=/app/openapi.json \
      -e MCP_API_BASE_URL=http://host.docker.internal:3000 \
      evilfreelancer/openapi-to-mcp:latest
    ```
@@ -107,7 +111,7 @@ A minimal `docker-compose.yaml` is included so you can run the MCP server and op
 
 1. Copy `.env.example` to `.env` and set:
 
-   - `MCP_OPENAPI_SPEC_URL` (e.g. your API’s `/openapi.json` URL)
+   - `MCP_OPENAPI_SPEC (URL like `http://api:3000/openapi.json` or file path like `./openapi.json`)
    - `MCP_API_BASE_URL` (e.g. `http://api:3000` if the API runs in another container)
 
 2. From the project root:
@@ -118,7 +122,7 @@ A minimal `docker-compose.yaml` is included so you can run the MCP server and op
 
 3. The MCP server will be available at `http://localhost:3100/mcp` (Streamable HTTP).
 
-To use a local OpenAPI file instead of a URL, set `MCP_OPENAPI_SPEC_FILE` and mount the file into the container (see `docker-compose.yaml` comments if present).
+To use a local OpenAPI file instead of a URL, set `MCP_OPENAPI_SPEC` to the file path and mount the file into the container (see `docker-compose.yaml` comments if present).
 
 ## Tests
 
@@ -126,7 +130,7 @@ To use a local OpenAPI file instead of a URL, set `MCP_OPENAPI_SPEC_FILE` and mo
 npm test
 ```
 
-Tests cover: config (env vars, include/exclude, defaults), OpenAPI loader (URL and file, URL over file, error when both unset), and openapi-to-tools (filtering, prefix, handler calling API with success and error). HTTP is mocked (axios-mock-adapter).
+Tests cover: config (env vars, include/exclude, defaults), OpenAPI loader (URL and file detection, error when unset), instructions loader (file loading and combination modes), and openapi-to-tools (filtering, prefix, handler calling API with success and error). HTTP is mocked (axios-mock-adapter).
 
 ## Dockerfile
 

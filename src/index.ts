@@ -3,6 +3,7 @@ import { loadOpenApiSpec } from './openapi-loader';
 import { openApiToTools } from './openapi-to-tools';
 import { createMcpApp } from './server';
 import { logger } from './logger';
+import { loadInstructions, combineInstructions, InstructionsMode } from './instructions-loader';
 
 async function main(): Promise<void> {
   const correlationId = 'startup';
@@ -22,11 +23,10 @@ async function main(): Promise<void> {
   });
 
   logger.info(correlationId, 'Loading OpenAPI spec', {
-    specUrl: config.openApiSpecUrl,
-    specFile: config.openApiSpecFile,
+    specSource: config.openApiSpec,
   });
 
-  const spec = await loadOpenApiSpec(config.openApiSpecUrl, config.openApiSpecFile);
+  const spec = await loadOpenApiSpec(config.openApiSpec);
 
   logger.info(correlationId, 'OpenAPI spec loaded', {
     title: spec.info?.title,
@@ -50,14 +50,40 @@ async function main(): Promise<void> {
     });
   }
 
-  const instructions = spec.info?.description;
-  if (instructions) {
-    logger.debug(correlationId, 'Using instructions from OpenAPI spec', {
-      instructionsLength: instructions.length,
+  const openApiInstructions = spec.info?.description || null;
+
+  let finalInstructions: string | null = null;
+  if (config.instructionsMode !== InstructionsMode.NONE && config.instructionsFile) {
+    try {
+      const fileInstructions = await loadInstructions(config.instructionsFile);
+      finalInstructions = combineInstructions(openApiInstructions, fileInstructions, config.instructionsMode);
+      logger.info(correlationId, 'Loaded custom instructions from file', {
+        file: config.instructionsFile,
+        mode: config.instructionsMode,
+        instructionsLength: finalInstructions?.length || 0,
+      });
+    } catch (error) {
+      logger.warn(correlationId, 'Failed to load instructions file, continuing without custom instructions', {
+        file: config.instructionsFile,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      finalInstructions = openApiInstructions;
+    }
+  } else if (config.instructionsMode === InstructionsMode.REPLACE && !config.instructionsFile) {
+    logger.warn(correlationId, 'MCP_INSTRUCTIONS_MODE is set to replace but MCP_INSTRUCTIONS_FILE is not set, ignoring custom instructions');
+    finalInstructions = openApiInstructions;
+  } else {
+    finalInstructions = combineInstructions(openApiInstructions, null, config.instructionsMode);
+  }
+
+  if (finalInstructions) {
+    logger.debug(correlationId, 'Using instructions', {
+      instructionsLength: finalInstructions.length,
+      source: openApiInstructions ? 'OpenAPI spec' : 'file only',
     });
   }
 
-  const app = createMcpApp(config, tools, instructions);
+  const app = createMcpApp(config, tools, finalInstructions || undefined);
   app.listen(config.port, config.host, () => {
     logger.info(correlationId, `MCP server listening on http://${config.host}:${config.port} (POST/GET /mcp)`);
   });

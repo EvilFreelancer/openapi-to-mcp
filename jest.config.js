@@ -4,4 +4,5 @@ module.exports = {
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
 };

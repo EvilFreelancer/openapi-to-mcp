@@ -1,6 +1,7 @@
 import { createMcpApp } from '../src/server';
 import type { McpConfig } from '../src/config';
 import type { ToolFromOpenApi } from '../src/openapi-to-tools';
+import { InstructionsMode } from '../src/instructions-loader';
 import { z } from 'zod';
 
 describe('server', () => {
@@ -9,11 +10,12 @@ describe('server', () => {
     apiBaseUrl: 'http://api.test',
     port: 3100,
     host: '0.0.0.0',
-    openApiSpecUrl: null,
-    openApiSpecFile: null,
+    openApiSpec: null,
     includeEndpoints: [],
     excludeEndpoints: [],
     toolPrefix: '',
+    instructionsFile: null,
+    instructionsMode: InstructionsMode.NONE,
   };
 
   const mockTool: ToolFromOpenApi = {
