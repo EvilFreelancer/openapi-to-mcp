@@ -53,27 +53,30 @@ function isIncluded(
   return !excludeEndpoints.some((ex) => keyNorm === ex.toLowerCase());
 }
 
-function openApiTypeToZod(schema?: OpenApiParameter['schema'], description?: string): z.ZodTypeAny {
+function openApiTypeToZod(schema?: OpenApiParameter['schema'], description?: string, required?: boolean): z.ZodTypeAny {
   const t = schema?.type ?? 'string';
   const enumVal = schema?.enum;
   let zodType: z.ZodTypeAny;
   if (enumVal?.length) {
-    zodType = z.enum(enumVal as [string, ...string[]]).optional();
+    zodType = z.enum(enumVal as [string, ...string[]]);
   } else {
     switch (t) {
       case 'integer':
       case 'number':
-        zodType = z.number().optional();
+        zodType = z.number();
         break;
       case 'boolean':
-        zodType = z.boolean().optional();
+        zodType = z.boolean();
         break;
       case 'array':
-        zodType = z.array(z.unknown()).optional();
+        zodType = z.array(z.unknown());
         break;
       default:
-        zodType = z.string().optional();
+        zodType = z.string();
     }
+  }
+  if (!required) {
+    zodType = zodType.optional();
   }
   return description ? zodType.describe(description) : zodType;
 }
@@ -91,11 +94,21 @@ function resolveParameterRef(ref: string, spec: OpenApiSpecWithParams): OpenApiP
 }
 
 /**
- * Resolve parameter: if it's a $ref, resolve it; otherwise return as-is.
+ * Resolve parameter: if it's a $ref, resolve it and merge with any additional properties;
+ * otherwise return as-is.
  */
 function resolveParameter(param: OpenApiParameter, spec: OpenApiSpecWithParams): OpenApiParameter | null {
   if (param.$ref) {
-    return resolveParameterRef(param.$ref, spec);
+    const resolved = resolveParameterRef(param.$ref, spec);
+    if (!resolved) return null;
+    // Merge additional properties from the reference with the resolved parameter
+    // (e.g., if the reference specifies required: true, it overrides the resolved parameter)
+    return {
+      ...resolved,
+      ...Object.fromEntries(
+        Object.entries(param).filter(([key]) => key !== '$ref'),
+      ),
+    };
   }
   return param;
 }
@@ -107,16 +120,17 @@ function buildZodShapeFromOperation(op: OpenApiOperation, spec: OpenApiSpecWithP
     if (!resolved) continue;
     if (resolved.in === 'query' || resolved.in === 'path') {
       const isRequired = resolved.required === true || p.required === true;
-      const zodType = openApiTypeToZod(resolved.schema, resolved.description);
-      shape[resolved.name] = isRequired ? zodType.unwrap() : zodType;
+      shape[resolved.name] = openApiTypeToZod(resolved.schema, resolved.description, isRequired);
     }
   }
   const bodySchema = op.requestBody?.content?.['application/json']?.schema;
+  const requiredFields = bodySchema?.required ?? [];
   if (bodySchema?.properties) {
     for (const [propName, propSchema] of Object.entries(bodySchema.properties)) {
       if (shape[propName] === undefined) {
         const propSchemaWithDesc = propSchema as { type?: string; description?: string; enum?: string[] };
-        shape[propName] = openApiTypeToZod(propSchemaWithDesc, propSchemaWithDesc.description);
+        const isRequired = requiredFields.includes(propName);
+        shape[propName] = openApiTypeToZod(propSchemaWithDesc, propSchemaWithDesc.description, isRequired);
       }
     }
   }

@@ -333,4 +333,69 @@ describe('openapi-to-tools', () => {
     expect(getDescription(shape.limit)).toBe('Maximum number of results');
     expect(getDescription(shape.offset)).toBe('Number of results to skip');
   });
+
+  it('resolves $ref parameter references to actual parameter definitions', () => {
+    const specWithRefs = {
+      openapi: '3.0.0',
+      info: { title: 'Test API', version: '1.0.0' },
+      parameters: {
+        key: {
+          name: 'key',
+          in: 'query',
+          required: true,
+          description: 'API key',
+          schema: { type: 'string' },
+        },
+        query: {
+          name: 'query',
+          in: 'query',
+          description: 'Search query',
+          schema: { type: 'string' },
+        },
+        limit: {
+          name: 'limit',
+          in: 'query',
+          description: 'Maximum number of results',
+          schema: { type: 'integer' },
+        },
+      },
+      paths: {
+        '/search': {
+          get: {
+            operationId: 'search',
+            summary: 'Search endpoint',
+            parameters: [
+              { $ref: '#/parameters/key' },
+              { $ref: '#/parameters/query' },
+              { $ref: '#/parameters/limit' },
+            ],
+          },
+        },
+      },
+    };
+    const tools = openApiToTools(specWithRefs as never, {
+      includeEndpoints: ['get:/search'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    expect(tools).toHaveLength(1);
+    const tool = tools[0];
+    const shape = tool.inputSchema._def.shape();
+    expect(shape).toBeDefined();
+    expect(shape.key).toBeDefined();
+    expect(shape.query).toBeDefined();
+    expect(shape.limit).toBeDefined();
+    
+    // Check that required parameter is not optional
+    const keyDef = shape.key._def;
+    expect(keyDef.typeName).toBe('ZodString');
+    // Required fields should not be wrapped in ZodOptional
+    expect(keyDef.typeName).not.toBe('ZodOptional');
+    
+    // Check that optional parameters are optional
+    const queryDef = shape.query._def;
+    expect(queryDef.typeName).toBe('ZodOptional');
+  });
 });
