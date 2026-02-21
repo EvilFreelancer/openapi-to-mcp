@@ -134,4 +134,52 @@ describe('config', () => {
     const config = loadConfig();
     expect(config.instructionsFile).toBeNull();
   });
+
+  it('parses MCP_API_BASIC_AUTH when set', () => {
+    process.env.MCP_API_BASIC_AUTH = 'myuser:mypass';
+    const config = loadConfig();
+    expect(config.apiBasicAuth).toBe('myuser:mypass');
+  });
+
+  it('parses MCP_API_BASIC_AUTH with username only (no password)', () => {
+    process.env.MCP_API_BASIC_AUTH = 'onlyuser';
+    const config = loadConfig();
+    expect(config.apiBasicAuth).toBe('onlyuser');
+  });
+
+  it('parses MCP_API_BASIC_AUTH with username and empty password', () => {
+    process.env.MCP_API_BASIC_AUTH = 'user:';
+    const config = loadConfig();
+    expect(config.apiBasicAuth).toBe('user:');
+  });
+
+  it('parses MCP_API_BEARER_TOKEN when set', () => {
+    process.env.MCP_API_BEARER_TOKEN = 'secret-token-123';
+    const config = loadConfig();
+    expect(config.apiBearerToken).toBe('secret-token-123');
+  });
+
+  it('returns null for apiBasicAuth and apiBearerToken when not set', () => {
+    delete process.env.MCP_API_BASIC_AUTH;
+    delete process.env.MCP_API_BEARER_TOKEN;
+    const config = loadConfig();
+    expect(config.apiBasicAuth).toBeNull();
+    expect(config.apiBearerToken).toBeNull();
+  });
+
+  it('trims apiBasicAuth and apiBearerToken', () => {
+    process.env.MCP_API_BASIC_AUTH = '  u:p  ';
+    process.env.MCP_API_BEARER_TOKEN = '  token  ';
+    const config = loadConfig();
+    expect(config.apiBasicAuth).toBe('u:p');
+    expect(config.apiBearerToken).toBe('token');
+  });
+
+  it('treats empty apiBasicAuth and apiBearerToken as null', () => {
+    process.env.MCP_API_BASIC_AUTH = '';
+    process.env.MCP_API_BEARER_TOKEN = '';
+    const config = loadConfig();
+    expect(config.apiBasicAuth).toBeNull();
+    expect(config.apiBearerToken).toBeNull();
+  });
 });

@@ -140,6 +140,117 @@ describe('openapi-to-tools', () => {
     expect(data.metadata.total_found).toBe(1);
   });
 
+  it('sends Authorization Basic header when apiBasicAuth is provided', async () => {
+    let capturedAuth: string | undefined;
+    mock.onGet('/messages').reply((config) => {
+      capturedAuth = config.headers?.Authorization as string | undefined;
+      return [200, { ok: true }];
+    });
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      apiBasicAuth: 'alice:secret',
+      axiosInstance,
+    });
+    await tools[0].handler({ query: 'test' });
+    const expected = 'Basic ' + Buffer.from('alice:secret', 'utf8').toString('base64');
+    expect(capturedAuth).toBe(expected);
+  });
+
+  it('sends Authorization Basic with username only (no password) when apiBasicAuth has no colon', async () => {
+    let capturedAuth: string | undefined;
+    mock.onGet('/messages').reply((config) => {
+      capturedAuth = config.headers?.Authorization as string | undefined;
+      return [200, { ok: true }];
+    });
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      apiBasicAuth: 'onlyuser',
+      axiosInstance,
+    });
+    await tools[0].handler({ query: 'test' });
+    const expected = 'Basic ' + Buffer.from('onlyuser', 'utf8').toString('base64');
+    expect(capturedAuth).toBe(expected);
+  });
+
+  it('sends Authorization Basic with empty password when apiBasicAuth is "user:"', async () => {
+    let capturedAuth: string | undefined;
+    mock.onGet('/messages').reply((config) => {
+      capturedAuth = config.headers?.Authorization as string | undefined;
+      return [200, { ok: true }];
+    });
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      apiBasicAuth: 'user:',
+      axiosInstance,
+    });
+    await tools[0].handler({ query: 'test' });
+    const expected = 'Basic ' + Buffer.from('user:', 'utf8').toString('base64');
+    expect(capturedAuth).toBe(expected);
+  });
+
+  it('sends Authorization Bearer header when apiBearerToken is provided', async () => {
+    let capturedAuth: string | undefined;
+    mock.onGet('/messages').reply((config) => {
+      capturedAuth = config.headers?.Authorization as string | undefined;
+      return [200, { ok: true }];
+    });
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      apiBearerToken: 'my-jwt-token',
+      axiosInstance,
+    });
+    await tools[0].handler({ query: 'test' });
+    expect(capturedAuth).toBe('Bearer my-jwt-token');
+  });
+
+  it('Bearer takes precedence when both apiBasicAuth and apiBearerToken are provided', async () => {
+    let capturedAuth: string | undefined;
+    mock.onGet('/messages').reply((config) => {
+      capturedAuth = config.headers?.Authorization as string | undefined;
+      return [200, { ok: true }];
+    });
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      apiBasicAuth: 'user:pass',
+      apiBearerToken: 'bearer-wins',
+      axiosInstance,
+    });
+    await tools[0].handler({ query: 'test' });
+    expect(capturedAuth).toBe('Bearer bearer-wins');
+  });
+
+  it('sends no Authorization header when neither apiBasicAuth nor apiBearerToken is set', async () => {
+    let capturedAuth: string | undefined;
+    mock.onGet('/messages').reply((config) => {
+      capturedAuth = config.headers?.Authorization as string | undefined;
+      return [200, { ok: true }];
+    });
+    const tools = openApiToTools(spec as never, {
+      includeEndpoints: ['get:/messages'],
+      excludeEndpoints: [],
+      toolPrefix: '',
+      apiBaseUrl: baseUrl,
+      axiosInstance,
+    });
+    await tools[0].handler({ query: 'test' });
+    expect(capturedAuth).toBeUndefined();
+  });
+
   it('tool handler returns error content when API fails', async () => {
     mock.onGet('/messages').reply(400, { error: 'At least one parameter is required' });
     const tools = openApiToTools(spec as never, {

@@ -43,6 +43,10 @@ export interface McpConfig {
   instructionsMode: InstructionsMode;
   /** Convert HTML tags in descriptions to Markdown. */
   convertHtmlToMarkdown: boolean;
+  /** Basic auth for API requests: "username:password". When set with apiBearerToken, Bearer is used. */
+  apiBasicAuth: string | null;
+  /** Bearer token for API requests. Takes precedence over apiBasicAuth when both set. */
+  apiBearerToken: string | null;
 }
 
 const DEFAULT_SERVER_NAME = 'openapi-to-mcp';
@@ -67,6 +71,8 @@ export function loadConfig(): McpConfig {
   const instructionsFile = process.env.MCP_INSTRUCTIONS_FILE?.trim() || null;
   const instructionsMode = parseInstructionsMode(process.env.MCP_INSTRUCTIONS_MODE);
   const convertHtmlToMarkdown = process.env.MCP_CONVERT_HTML_TO_MARKDOWN !== 'false';
+  const apiBasicAuth = process.env.MCP_API_BASIC_AUTH?.trim() || null;
+  const apiBearerToken = process.env.MCP_API_BEARER_TOKEN?.trim() || null;
 
   return {
     serverName,
@@ -80,5 +86,7 @@ export function loadConfig(): McpConfig {
     instructionsFile,
     instructionsMode,
     convertHtmlToMarkdown,
+    apiBasicAuth,
+    apiBearerToken,
   };
 }

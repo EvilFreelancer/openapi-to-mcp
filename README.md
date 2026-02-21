@@ -46,6 +46,8 @@ Environment variables are loaded from `.env` file in the project root (using `do
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MCP_API_BASE_URL` | Base URL for API requests | `http://127.0.0.1:3000` |
+| `MCP_API_BASIC_AUTH` | Basic auth for API requests: `username:password`. Use when the remote API is protected by HTTP Basic Auth. If both this and `MCP_API_BEARER_TOKEN` are set, Bearer is used. | - |
+| `MCP_API_BEARER_TOKEN` | Bearer token for API requests. Use when the remote API expects `Authorization: Bearer <token>`. Takes precedence over `MCP_API_BASIC_AUTH` when both set. | - |
 | `MCP_OPENAPI_SPEC` | OpenAPI spec source: URL (starts with `http://` or `https://`) or file path (e.g. `http://api:3000/openapi.json` or `./openapi.json`). Automatically detects URL vs file. | - |
 | `MCP_INCLUDE_ENDPOINTS` | Comma-separated `method:path` (e.g. `get:/messages,get:/channels`). If set, only these become tools. | - |
 | `MCP_EXCLUDE_ENDPOINTS` | Comma-separated `method:path` to exclude. Ignored for endpoints in include. | - |

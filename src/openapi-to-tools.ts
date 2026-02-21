@@ -238,6 +238,18 @@ function resolveOperations(
  * Build MCP tools from OpenAPI spec. Filter by include/exclude (include has priority).
  * Tool name = toolPrefix + path segment (e.g. telegram_ + messages = telegram_messages).
  */
+/** Build Authorization header value for API requests. Bearer takes precedence over Basic when both set. */
+function buildAuthHeaders(apiBasicAuth: string | null | undefined, apiBearerToken: string | null | undefined): Record<string, string> {
+  if (apiBearerToken) {
+    return { Authorization: `Bearer ${apiBearerToken}` };
+  }
+  if (apiBasicAuth) {
+    const encoded = Buffer.from(apiBasicAuth, 'utf8').toString('base64');
+    return { Authorization: `Basic ${encoded}` };
+  }
+  return {};
+}
+
 export function openApiToTools(
   spec: OpenApiSpec,
   config: {
@@ -246,10 +258,17 @@ export function openApiToTools(
     toolPrefix: string;
     apiBaseUrl: string;
     convertHtmlToMarkdown?: boolean;
+    apiBasicAuth?: string | null;
+    apiBearerToken?: string | null;
     axiosInstance?: AxiosInstance;
   },
 ): ToolFromOpenApi[] {
-  const client = config.axiosInstance ?? axios.create({ baseURL: config.apiBaseUrl.replace(/\/$/, ''), timeout: 30000 });
+  const authHeaders = buildAuthHeaders(config.apiBasicAuth, config.apiBearerToken);
+  const client = config.axiosInstance ?? axios.create({
+    baseURL: config.apiBaseUrl.replace(/\/$/, ''),
+    timeout: 30000,
+    headers: authHeaders,
+  });
   const ops = resolveOperations(
     spec,
     config.includeEndpoints,
@@ -318,7 +337,8 @@ export function openApiToTools(
           data,
         });
 
-        const res = await client.request({ method, url, params, data });
+        const requestConfig = { method, url, params, data, headers: authHeaders };
+        const res = await client.request(requestConfig);
 
         logger.debug(correlationId, `API call successful: ${method.toUpperCase()} ${url}`, {
           toolName: uniqueName,

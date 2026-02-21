@@ -17,6 +17,8 @@ describe('server', () => {
     instructionsFile: null,
     instructionsMode: InstructionsMode.DEFAULT,
     convertHtmlToMarkdown: true,
+    apiBasicAuth: null,
+    apiBearerToken: null,
   };
 
   const mockTool: ToolFromOpenApi = {

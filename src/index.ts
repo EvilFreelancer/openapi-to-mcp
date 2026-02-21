@@ -45,6 +45,8 @@ async function main(): Promise<void> {
     toolPrefix: config.toolPrefix,
     apiBaseUrl: config.apiBaseUrl,
     convertHtmlToMarkdown: config.convertHtmlToMarkdown,
+    apiBasicAuth: config.apiBasicAuth,
+    apiBearerToken: config.apiBearerToken,
   });
 
   if (tools.length === 0) {
